@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Matrícula Biblioteca</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-lg p-8 w-full max-w-xl">
+    <h1 class="text-2xl font-bold text-center text-blue-700 mb-6">Sistema de Matrícula</h1>
+
+    <div id="form-doc" class="mb-6">
+      <label for="documento" class="block text-gray-700 mb-2">Número de documento:</label>
+      <input id="documento" type="text" class="w-full border border-gray-300 rounded p-2" placeholder="Ingrese su número de documento">
+      <button onclick="consultarCursos()" class="mt-4 w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Consultar Oferta</button>
+    </div>
+
+    <div id="oferta" class="hidden">
+      <h2 class="text-xl font-semibold text-gray-800 mb-4">Oferta de Cursos</h2>
+      <form id="form-cursos" class="space-y-2"></form>
+      <div class="mt-4 flex justify-between">
+        <button type="button" onclick="corregir()" class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500">Corregir</button>
+        <button type="button" onclick="confirmarMatricula()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Confirmar</button>
+      </div>
+    </div>
+
+    <div id="resultado" class="hidden text-center mt-6">
+      <audio id="audio" controls class="mx-auto mb-4"></audio>
+      <p class="text-lg font-medium text-gray-800" id="mensajeFinal"></p>
+    </div>
+  </div>
+
+  <script>
+    let cursos = [];
+    function consultarCursos() {
+      const doc = document.getElementById("documento").value;
+      if (!doc) return alert("Ingrese documento");
+      fetch(`/validar_usuario/${doc}`)
+        .then(res => res.json())
+        .then(data => {
+          if (!data.valido) return alert("Usuario no encontrado");
+          fetch('/oferta')
+            .then(r => r.json())
+            .then(json => {
+              cursos = json;
+              const formCursos = document.getElementById("form-cursos");
+              formCursos.innerHTML = "";
+              cursos.forEach(c => {
+                formCursos.innerHTML += `
+                  <div class="flex items-center gap-2">
+                    <input type="checkbox" id="curso-${c.id}" value="${c.id}">
+                    <label for="curso-${c.id}">${c.nombre}</label>
+                  </div>`;
+              });
+              document.getElementById("form-doc").classList.add("hidden");
+              document.getElementById("oferta").classList.remove("hidden");
+            });
+        });
+    }
+
+    function confirmarMatricula() {
+      const doc = document.getElementById("documento").value;
+      const seleccionados = Array.from(document.querySelectorAll("input[type='checkbox']:checked")).map(e => parseInt(e.value));
+      if (!seleccionados.length) return alert("Seleccione al menos un curso");
+      fetch('/matricular', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({documento: doc, cursos: seleccionados})
+      })
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("mensajeFinal").textContent = data.mensaje;
+        const audio = document.getElementById("audio");
+        audio.src = data.audio;
+        document.getElementById("oferta").classList.add("hidden");
+        document.getElementById("resultado").classList.remove("hidden");
+      });
+    }
+
+    function corregir() {
+      document.getElementById("oferta").classList.add("hidden");
+      document.getElementById("form-doc").classList.remove("hidden");
+    }
+  </script>
+</body>
+</html>
