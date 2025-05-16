@@ -1,12 +1,12 @@
 from flask import Flask, render_template, jsonify, request
-import mysql.connector
+import pymysql as mysql
 from gtts import gTTS
 import os
 from datetime import datetime
 
 app = Flask(__name__)
 
-db = mysql.connector.connect(
+db = mysql.connect(
     host='localhost',
     user='root',
     password='tu_clave',
