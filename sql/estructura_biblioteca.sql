@@ -35,3 +35,7 @@ INSERT INTO cursos (nombre) VALUES
 ('Desarrollo Web con Flask'),
 ('Bases de Datos con MySQL'),
 ('Machine Learning Intermedio');
+
+-- Crear usuario dedicado
+CREATE USER 'app_user'@'localhost' IDENTIFIED BY 'tu_clave';
+GRANT SELECT, INSERT, UPDATE, DELETE ON biblioteca.* TO 'app_user'@'localhost';

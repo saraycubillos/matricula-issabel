@@ -8,7 +8,7 @@ app = Flask(__name__)
 
 db = mysql.connect(
     host='localhost',
-    user='root',
+    user='app_user',
     password='tu_clave',
     database='biblioteca'
 )
