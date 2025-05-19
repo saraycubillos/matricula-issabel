@@ -10,78 +10,165 @@
   <div class="bg-white rounded-2xl shadow-lg p-8 w-full max-w-xl">
     <h1 class="text-2xl font-bold text-center text-blue-700 mb-6">Sistema de Matrícula</h1>
 
-    <div id="form-doc" class="mb-6">
+    <!-- Paso 1: Ingreso de documento -->
+    <div id="paso1">
       <label for="documento" class="block text-gray-700 mb-2">Número de documento:</label>
       <input id="documento" type="text" class="w-full border border-gray-300 rounded p-2" placeholder="Ingrese su número de documento">
       <button onclick="consultarCursos()" class="mt-4 w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Consultar Oferta</button>
     </div>
 
-    <div id="oferta" class="hidden">
+    <!-- Paso 2: Selección de cursos -->
+    <div id="paso2" class="hidden">
       <h2 class="text-xl font-semibold text-gray-800 mb-4">Oferta de Cursos</h2>
-      <form id="form-cursos" class="space-y-2"></form>
+      <div id="lista-cursos" class="space-y-2"></div>
       <div class="mt-4 flex justify-between">
-        <button type="button" onclick="corregir()" class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500">Corregir</button>
-        <button type="button" onclick="confirmarMatricula()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Confirmar</button>
+        <button onclick="volverAPaso1()" class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500">Corregir</button>
+        <button onclick="confirmarMatricula()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Confirmar</button>
       </div>
     </div>
 
-    <div id="resultado" class="hidden text-center mt-6">
-      <audio id="audio" controls class="mx-auto mb-4"></audio>
-      <p class="text-lg font-medium text-gray-800" id="mensajeFinal"></p>
+    <!-- Paso 3: Resultado -->
+    <div id="paso3" class="hidden text-center">
+      <audio id="audio-resultado" controls class="mx-auto mb-4"></audio>
+      <p class="text-lg font-medium text-gray-800 mb-4" id="mensaje-final"></p>
+      <button onclick="volverAPaso1()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Volver al inicio</button>
     </div>
   </div>
 
   <script>
-    let cursos = [];
+    // 1. Base de datos simulada (según tu SQL)
+    const db = {
+      usuarios: [
+        { id: 1, documento: "123456789", nombre: "Juan Pérez" },
+        { id: 2, documento: "987654321", nombre: "María Gómez" }
+      ],
+      cursos: [
+        { id: 1, nombre: "Python para Principiantes" },
+        { id: 2, nombre: "Introducción a la Inteligencia Artificial" },
+        { id: 3, nombre: "Desarrollo Web con Flask" },
+        { id: 4, nombre: "Bases de Datos con MySQL" },
+        { id: 5, nombre: "Machine Learning Intermedio" }
+      ],
+      matriculas: []
+    };
+
+    // 2. Variables de estado
+    let documentoActual = "";
+    let audioGenerado = null;
+
+    // 3. Funciones principales
     function consultarCursos() {
-      const doc = document.getElementById("documento").value;
-      if (!doc) return alert("Ingrese documento");
-      fetch(`/validar_usuario/${doc}`)
-        .then(res => res.json())
-        .then(data => {
-          if (!data.valido) return alert("Usuario no encontrado");
-          fetch('/oferta')
-            .then(r => r.json())
-            .then(json => {
-              cursos = json;
-              const formCursos = document.getElementById("form-cursos");
-              formCursos.innerHTML = "";
-              cursos.forEach(c => {
-                formCursos.innerHTML += `
-                  <div class="flex items-center gap-2">
-                    <input type="checkbox" id="curso-${c.id}" value="${c.id}">
-                    <label for="curso-${c.id}">${c.nombre}</label>
-                  </div>`;
-              });
-              document.getElementById("form-doc").classList.add("hidden");
-              document.getElementById("oferta").classList.remove("hidden");
-            });
-        });
+      const docInput = document.getElementById("documento");
+      documentoActual = docInput.value.trim();
+      
+      // Validación básica
+      if (!documentoActual) {
+        mostrarError("Por favor ingrese su documento");
+        return;
+      }
+      
+      // Verificar usuario
+      const usuarioExiste = db.usuarios.some(u => u.documento === documentoActual);
+      if (!usuarioExiste) {
+        mostrarError("Usuario no encontrado");
+        return;
+      }
+      
+      // Mostrar cursos
+      mostrarCursos();
+      cambiarPaso(2);
+    }
+
+    function mostrarCursos() {
+      const contenedor = document.getElementById("lista-cursos");
+      contenedor.innerHTML = db.cursos.map(curso => `
+        <div class="flex items-center gap-2">
+          <input type="checkbox" id="curso-${curso.id}" value="${curso.id}" class="curso-checkbox">
+          <label for="curso-${curso.id}">${curso.nombre}</label>
+        </div>
+      `).join('');
     }
 
     function confirmarMatricula() {
-      const doc = document.getElementById("documento").value;
-      const seleccionados = Array.from(document.querySelectorAll("input[type='checkbox']:checked")).map(e => parseInt(e.value));
-      if (!seleccionados.length) return alert("Seleccione al menos un curso");
-      fetch('/matricular', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({documento: doc, cursos: seleccionados})
-      })
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById("mensajeFinal").textContent = data.mensaje;
-        const audio = document.getElementById("audio");
-        audio.src = data.audio;
-        document.getElementById("oferta").classList.add("hidden");
-        document.getElementById("resultado").classList.remove("hidden");
+      const checkboxes = document.querySelectorAll(".curso-checkbox:checked");
+      
+      // Validar selección
+      if (checkboxes.length === 0) {
+        mostrarError("Seleccione al menos un curso");
+        return;
+      }
+      
+      // Obtener IDs de cursos seleccionados
+      const cursosSeleccionados = Array.from(checkboxes).map(cb => parseInt(cb.value));
+      
+      // Registrar matrículas (en la DB simulada)
+      const usuario = db.usuarios.find(u => u.documento === documentoActual);
+      cursosSeleccionados.forEach(cursoId => {
+        db.matriculas.push({
+          id_usuario: usuario.id,
+          id_curso: cursoId,
+          fecha: new Date().toISOString()
+        });
       });
+      
+      // Generar mensaje de confirmación
+      const nombresCursos = cursosSeleccionados.map(id => 
+        db.cursos.find(c => c.id === id).nombre
+      );
+      
+      const mensaje = `Matrícula exitosa para ${usuario.nombre} en: ${nombresCursos.join(", ")}`;
+      
+      // Mostrar resultado
+      mostrarResultado(mensaje);
+      generarAudio(mensaje);
+      cambiarPaso(3);
     }
 
-    function corregir() {
-      document.getElementById("oferta").classList.add("hidden");
-      document.getElementById("form-doc").classList.remove("hidden");
+    // 4. Funciones auxiliares
+    function cambiarPaso(numeroPaso) {
+      // Oculta todos los pasos primero
+      document.querySelectorAll('[id^="paso"]').forEach(el => {
+        el.classList.add('hidden');
+      });
+      
+      // Muestra el paso actual
+      document.getElementById(`paso${numeroPaso}`).classList.remove('hidden');
     }
+
+    function volverAPaso1() {
+      document.getElementById("documento").value = "";
+      cambiarPaso(1);
+    }
+
+    function mostrarError(mensaje) {
+      alert(mensaje); // Podrías reemplazar esto con un div de error más elegante
+    }
+
+    function mostrarResultado(mensaje) {
+      document.getElementById("mensaje-final").textContent = mensaje;
+    }
+
+    function generarAudio(mensaje) {
+      if ('speechSynthesis' in window) {
+        // Detener cualquier audio previo
+        window.speechSynthesis.cancel();
+        
+        // Crear y reproducir nuevo audio
+        const utterance = new SpeechSynthesisUtterance(mensaje);
+        utterance.lang = 'es-ES';
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+        
+        // Configurar controles de audio (opcional)
+        const audioElement = document.getElementById("audio-resultado");
+        audioElement.style.display = 'none'; // Ocultamos el reproductor ya que usamos síntesis directa
+      } else {
+        console.warn("API de síntesis de voz no soportada");
+      }
+    }
+
+    // Inicialización
+    cambiarPaso(1);
   </script>
 </body>
 </html>
