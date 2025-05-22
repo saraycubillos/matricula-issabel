@@ -1,6 +1,6 @@
 <?php
 define("MAQUINA", "localhost");
-define("USUARIO", "app_user");
-define("CLAVE", "clave");
+define("USUARIO", "usrbiblioteca");
+define("CLAVE", "passbiblioteca");
 define("DB", "biblioteca");
 ?>
