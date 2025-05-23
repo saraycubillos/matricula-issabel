@@ -1,30 +1,27 @@
 <?php
-session_start();
 require("definiciones.inc");
-
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["documento"])) {
-    $_SESSION["documento"] = $_POST["documento"];
-    $_SESSION["nombre"] = $_POST["nombre"];
-}
-
-$link = mysqli_connect(MAQUINA, USUARIO, CLAVE, DB);
-if (!$link) {
-    die("Error de conexión: " . mysqli_connect_error());
-}
-
-$documento = $_SESSION["documento"];
-$nombre = $_SESSION["nombre"];
-
-$result = mysqli_query($link, "SELECT id, nombre FROM cursos");
-
-echo "<h2>Bienvenido, " . htmlentities($nombre) . "</h2>";
-echo "<form method='POST' action='confirmar.php'>";
-echo "<input type='hidden' name='documento' value='" . htmlentities($documento) . "'>";
-echo "<input type='hidden' name='nombre' value='" . htmlentities($nombre) . "'>";
-echo "<h3>Seleccione los cursos:</h3>";
-while ($row = mysqli_fetch_array($result)) {
-    echo "<input type='checkbox' name='cursos[]' value='" . $row['id'] . "'> " . htmlentities($row['nombre']) . "<br>";
-}
-echo "<input type='submit' value='Confirmar matrícula'>";
-echo "</form>";
 ?>
+<html>
+<head>
+    <title>Sistema de Matrículas</title>
+    <style>
+        body { background-color: #769AB4; font-family: Arial, sans-serif; }
+        .container { width: 80%; margin: 40px auto; background-color: #FFFFCC; padding: 20px; border-radius: 10px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        input[type="submit"] { padding: 8px 15px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        input[type="submit"]:hover { background-color: #45a049; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Sistema de Matrículas</h2>
+        <form action="verificar_usuario.php" method="post">
+            <p>Ingrese su número de documento:</p>
+            <input type="text" name="documento" required>
+            <input type="submit" value="Continuar">
+        </form>
+    </div>
+</body>
+</html>
