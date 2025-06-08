@@ -1,0 +1,136 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use DBI;
+use Asterisk::AGI;
+
+# ---------- 1. Constantes de conexión ----------
+use constant {
+    MAQUINA => 'localhost',
+    USUARIO => 'app_user',
+    CLAVE   => 'tu_clave',
+    DB      => 'biblioteca',
+};
+
+# ---------- 2. Helper de síntesis ----------
+sub sayTTS {
+    my ($agi, $text, $lang) = @_;
+    $lang ||= 'es';
+    $text =~ s/"/'/g;
+
+    my $cmd = "googletts.agi,'$text',$lang";
+    $agi->verbose($cmd, 1);
+    $agi->exec("AGI", $cmd);
+}
+
+# ---------- 3. Inicialización ----------
+my $agi = Asterisk::AGI->new;
+$agi->answer;
+$agi->verbose('Iniciando script de matrícula', 1);
+sayTTS($agi, 'Bienvenido al sistema de matrículas telefónicas');
+
+# ---------- 4. Base de datos ----------
+my $dbh = DBI->connect(
+    'DBI:mysql:database='.DB.';host='.MAQUINA,
+    USUARIO, CLAVE,
+    { RaiseError => 1, PrintError => 0 }
+) or do {
+    $agi->verbose("Error de conexión: $DBI::errstr", 1);
+    sayTTS($agi, 'Error al conectar con la base de datos');
+    $agi->hangup; exit 1;
+};
+
+# ---------- 5. Capturar documento ----------
+sayTTS($agi, 'Por favor digite su número de documento seguido de la tecla numeral');
+my $documento = $agi->get_data('beep', 5000, 10) // '';
+
+sayTTS($agi, "Documento ingresado $documento");
+
+# ---------- 6. Buscar usuario ----------
+my $sth_usuario = $dbh->prepare(
+    'SELECT id, nombre FROM usuarios WHERE documento = ?'
+);
+$sth_usuario->execute($documento);
+
+if (my $usuario = $sth_usuario->fetchrow_hashref) {
+
+    my ($id_usuario, $nombre_usuario) = @$usuario{qw/id nombre/};
+    sayTTS($agi, "Hola $nombre_usuario a continuación escuchará los cursos disponibles");
+
+    while (1) {
+
+        # 6‑a. Listar cursos
+        my $sth_cursos = $dbh->prepare('SELECT id, nombre FROM cursos');
+        $sth_cursos->execute;
+
+        my (%curso_opciones, %cursos_disponibles, $opcion);
+        $opcion = 1;
+        while (my $curso = $sth_cursos->fetchrow_hashref) {
+            $curso_opciones{$opcion}     = $curso->{id};
+            $cursos_disponibles{$opcion} = $curso->{nombre};
+            sayTTS($agi, "Opción $opcion $curso->{nombre}");
+            $opcion++;
+            select undef, undef, undef, 0.5;
+        }
+
+        # 6‑b. Recolectar selección
+        sayTTS($agi,
+            'Digite las opciones de los cursos que desea matricular una por una seguidas de la tecla numeral Marque cero para terminar'
+        );
+
+        my @cursos_seleccionados;
+        while (1) {
+            my $r = $agi->get_data('beep', 5000, 10) // '';
+            last if $r eq '0';
+            if (exists $curso_opciones{$r}
+                && !grep { $_ == $curso_opciones{$r} } @cursos_seleccionados)
+            {
+                push @cursos_seleccionados, $curso_opciones{$r};
+            }
+        }
+
+        unless (@cursos_seleccionados) {
+            sayTTS($agi, 'No seleccionó ningún curso');
+            $agi->hangup; exit 0;
+        }
+
+        # 6‑c. Confirmación
+        sayTTS($agi, 'Usted ha seleccionado los siguientes cursos');
+        for my $id_curso (@cursos_seleccionados) {
+            my ($idx) = grep { $curso_opciones{$_} == $id_curso } keys %curso_opciones;
+            sayTTS($agi, $cursos_disponibles{$idx} // 'Curso');
+            select undef, undef, undef, 0.5;
+        }
+
+        sayTTS($agi,
+            'Para confirmar su matrícula digite uno. '
+          . 'Para corregir su selección digite dos. '
+          . 'Para cancelar digite tres.'
+        );
+
+        my $conf = $agi->get_data('beep', 5000, 1) // '';
+
+        if ($conf eq '1') {
+            my $ins = $dbh->prepare(
+                'INSERT INTO matriculas (id_usuario, id_curso) VALUES (?, ?)'
+            );
+            $ins->execute($id_usuario, $_) for @cursos_seleccionados;
+            sayTTS($agi, 'Su matrícula ha sido confirmada. Muchas gracias.');
+            last;
+        }
+        elsif ($conf eq '2') {
+            sayTTS($agi, 'Puede seleccionar nuevamente los cursos.');
+        }
+        else {
+            sayTTS($agi, 'Su matrícula ha sido cancelada. Puede intentarlo nuevamente.');
+            last;
+        }
+    }
+
+} else {
+    sayTTS($agi, 'Documento no encontrado');
+}
+
+$agi->hangup;
+exit 0;
+
