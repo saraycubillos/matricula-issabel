@@ -99,7 +99,7 @@ Resources:
   ##################
   # Seguridad
   ##################
-
+  
   ECSSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -109,7 +109,11 @@ Resources:
         - IpProtocol: udp
           FromPort: 5060
           ToPort: 5060
-          CidrIp: 0.0.0.0/0  # O restringe a lo que necesites
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: udp
+          FromPort: 10000
+          ToPort: 10010
+          CidrIp: 0.0.0.0/0 
         - IpProtocol: tcp
           FromPort: 8088
           ToPort: 8088
@@ -121,7 +125,12 @@ Resources:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 0.0.0.0/0  # Opcional para SSH si usas EC2 bastion
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: 0
+          ToPort: 0
+          CidrIp: 0.0.0.0/0
 
   ##################
   # Roles IAM
@@ -167,6 +176,28 @@ Resources:
               Protocol: udp
             - ContainerPort: 8088
               Protocol: tcp
+            - ContainerPort: 10000
+              Protocol: udp
+            - ContainerPort: 10001
+              Protocol: udp
+            - ContainerPort: 10002
+              Protocol: udp
+            - ContainerPort: 10003
+              Protocol: udp
+            - ContainerPort: 10004
+              Protocol: udp
+            - ContainerPort: 10005
+              Protocol: udp
+            - ContainerPort: 10006
+              Protocol: udp
+            - ContainerPort: 10007
+              Protocol: udp
+            - ContainerPort: 10008
+              Protocol: udp
+            - ContainerPort: 10009
+              Protocol: udp
+            - ContainerPort: 10010
+              Protocol: udp
           Essential: true
           EntryPoint:
             - /bin/sh

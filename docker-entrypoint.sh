@@ -28,6 +28,17 @@ for f in /docker-entrypoint-initdb.d/*.sql; do
 done
 shopt -u nullglob
 
+echo "[INFO] Detectando IP pública para externip..."
+PUBLIC_IP=$(curl -s https://api.ipify.org)
+if [[ -z "$PUBLIC_IP" ]]; then
+    echo "[ERROR] No se pudo obtener la IP pública." >&2
+    exit 1
+fi
+echo "[INFO] IP pública detectada: $PUBLIC_IP"
+
+echo "[INFO] Actualizando externip en sip.conf..."
+sed -i "s/__EXTERN_IP__/${PUBLIC_IP}/g" /etc/asterisk/sip.conf
+
 echo "[INFO] Añadiendo extensiones personalizadas a extensions.conf..."
 if ! grep -q "include extensions_custom.conf" /etc/asterisk/extensions.conf 2>/dev/null; then
     echo "#include extensions_custom.conf" >> /etc/asterisk/extensions.conf

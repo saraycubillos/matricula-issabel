@@ -24,15 +24,13 @@ COPY matriculador/php/* /usr/share/asterisk/agi-bin/
 COPY matriculador/sql/* /docker-entrypoint-initdb.d/
 COPY matriculador/agi/* /usr/share/asterisk/agi-bin/
 
-# Copiar script de entrada
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY docker-entrypoint.sh /docker-entrypoint.sh
 
-# Dar permisos de ejecución a scripts
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+RUN chmod +x /docker-entrypoint.sh \
     && chmod +x /usr/share/asterisk/agi-bin/*.php \
     && chmod +x /usr/share/asterisk/agi-bin/*.agi
 
-# Exponer puertos para SIP y RTP
 EXPOSE 5060/udp 5060/tcp 10000-20000/udp
 
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
+
